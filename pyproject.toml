@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pcc-bulletin-generator"
+version = "1.0.0"
+description = "Automated PCC weekly bulletin email summary generator"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.30",
+    "pymupdf>=1.24",
+    "python-docx>=1.1",
+]
+
+[project.scripts]
+pcc-bulletin = "pcc_bulletin.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pcc_bulletin*"]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["pcc_bulletin"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
