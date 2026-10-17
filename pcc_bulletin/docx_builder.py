@@ -1,9 +1,26 @@
 import io
+import re
 
 from docx import Document
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+
+LINK_COLOR = "0563C1"
+
+# Inline Markdown, in priority order: [text](url), **bold**, *italic* / _italic_, bare URL.
+_INLINE = re.compile(
+    r"\[(?P<ltext>[^\]]+)\]\((?P<lurl>https?://[^\s)]+)\)"
+    r"|\*\*(?P<bold>.+?)\*\*"
+    r"|(?<![\w*])\*(?P<ital>[^\s*](?:.*?[^\s*])?)\*(?![\w*])"
+    r"|(?<!\w)_(?P<ital2>[^\s_](?:.*?[^\s_])?)_(?!\w)"
+    r"|(?P<url>https?://[^\s<>()]*[^\s<>().,;:!?'\"])"
+)
+_HEADING = re.compile(r"^#{1,6}\s+(.*)$")
+_BULLET = re.compile(r"^[-*+]\s+(.*)$")
+_NUMBERED = re.compile(r"^\d+[.)]\s+(.*)$")
+_RULE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})$")
 
 
 def build_docx(email_text: str) -> bytes:
@@ -36,19 +53,65 @@ def build_docx(email_text: str) -> bytes:
             _insert_table(doc, date_rows)
         elif stripped == "":
             doc.add_paragraph("")
+        elif _RULE.match(stripped):
+            continue
+        elif m := _HEADING.match(stripped):
+            p = doc.add_paragraph()
+            p.paragraph_format.space_after = Pt(8)
+            add_inline(p, m.group(1), bold=True, size=14)
+        elif m := _BULLET.match(stripped):
+            add_inline(doc.add_paragraph(style="List Bullet"), m.group(1))
+        elif m := _NUMBERED.match(stripped):
+            add_inline(doc.add_paragraph(style="List Number"), m.group(1))
         else:
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(8)
-            run = p.add_run(stripped)
-            run.font.name = "Arial"
-            run.font.size = Pt(12)
-            if stripped == "Looking ahead:":
-                run.bold = True
+            add_inline(p, stripped, bold=stripped == "Looking ahead:")
 
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+def add_inline(paragraph, text: str, bold: bool = False, italic: bool = False, size: int = 12):
+    """Append *text* to *paragraph*, rendering inline Markdown and URLs as real formatting."""
+    pos = 0
+    for m in _INLINE.finditer(text):
+        if m.start() > pos:
+            _add_run(paragraph, text[pos : m.start()], bold, italic, size)
+        if m.group("lurl"):
+            _add_hyperlink(paragraph, m.group("ltext"), m.group("lurl"), bold, italic, size)
+        elif m.group("url"):
+            _add_hyperlink(paragraph, m.group("url"), m.group("url"), bold, italic, size)
+        elif m.group("bold") is not None:
+            add_inline(paragraph, m.group("bold"), True, italic, size)
+        else:
+            add_inline(paragraph, m.group("ital") or m.group("ital2"), bold, True, size)
+        pos = m.end()
+    if pos < len(text):
+        _add_run(paragraph, text[pos:], bold, italic, size)
+
+
+def _add_run(paragraph, text: str, bold: bool, italic: bool, size: int):
+    run = paragraph.add_run(text)
+    run.font.name = "Arial"
+    run.font.size = Pt(size)
+    run.bold = bold or None
+    run.italic = italic or None
+    return run
+
+
+def _add_hyperlink(paragraph, text: str, url: str, bold: bool, italic: bool, size: int) -> None:
+    r_id = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), r_id)
+    run = _add_run(paragraph, text, bold, italic, size)
+    run.font.color.rgb = RGBColor.from_string(LINK_COLOR)
+    run.font.underline = True
+    # Move the run inside the hyperlink element so Word treats it as clickable.
+    hyperlink.append(run._r)
+    paragraph._p.append(hyperlink)
 
 
 def _set_cell_bg(cell, hex_color: str) -> None:
@@ -86,6 +149,4 @@ def _insert_table(doc: Document, date_rows: list[tuple[str, str]]) -> None:
             cell = row.cells[i]
             _set_cell_bg(cell, fill)
             cell.paragraphs[0].clear()
-            run = cell.paragraphs[0].add_run(text)
-            run.font.name = "Arial"
-            run.font.size = Pt(12)
+            add_inline(cell.paragraphs[0], text)

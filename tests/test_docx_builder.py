@@ -1,6 +1,8 @@
 import io
 
 from docx import Document
+from docx.oxml.ns import qn
+from docx.shared import Pt
 
 from pcc_bulletin.docx_builder import build_docx
 
@@ -96,3 +98,85 @@ def test_empty_lines_become_paragraphs():
     assert "Line one." in texts
     assert "" in texts
     assert "Line two." in texts
+
+
+# ── inline Markdown / links ──────────────────────────────────────────────────
+
+
+def _hyperlinks(doc):
+    """Return (text, url) for every hyperlink in the document body and tables."""
+    rels = doc.part.rels
+    out = []
+    for h in doc.element.body.iter(qn("w:hyperlink")):
+        text = "".join(t.text for t in h.iter(qn("w:t")))
+        out.append((text, rels[h.get(qn("r:id"))].target_ref))
+    return out
+
+
+def test_bare_url_becomes_hyperlink():
+    doc = _load(build_docx(FULL_TEXT))
+    assert ("https://pccmi.org/bulletin", "https://pccmi.org/bulletin") in _hyperlinks(doc)
+    para = [p for p in doc.paragraphs if "See the bulletin" in p.text][0]
+    assert para.text == "See the bulletin for details: https://pccmi.org/bulletin"
+
+
+def test_trailing_punctuation_not_in_url():
+    doc = _load(build_docx("Visit https://pccmi.org/events.\n"))
+    assert _hyperlinks(doc) == [("https://pccmi.org/events", "https://pccmi.org/events")]
+    assert doc.paragraphs[0].text == "Visit https://pccmi.org/events."
+
+
+def test_markdown_link_rendered():
+    doc = _load(build_docx("Sign up [here](https://pccmi.org/signup) today.\n"))
+    assert _hyperlinks(doc) == [("here", "https://pccmi.org/signup")]
+    assert doc.paragraphs[0].text == "Sign up here today."
+
+
+def test_bold_and_italic_rendered():
+    doc = _load(build_docx("A **big** day and an *early* start and _more_.\n"))
+    p = doc.paragraphs[0]
+    assert p.text == "A big day and an early start and more."
+    runs = {r.text: r for r in p.runs}
+    assert runs["big"].bold
+    assert runs["early"].italic
+    assert runs["more"].italic
+    assert not runs["A "].bold
+
+
+def test_link_inside_bold():
+    doc = _load(build_docx("**Register at https://pccmi.org/vbs**\n"))
+    assert _hyperlinks(doc) == [("https://pccmi.org/vbs", "https://pccmi.org/vbs")]
+    assert all(r.bold for r in doc.paragraphs[0].runs)
+
+
+def test_asterisks_in_plain_text_left_alone():
+    doc = _load(build_docx("2 * 3 = 6 and snake_case_name\n"))
+    assert doc.paragraphs[0].text == "2 * 3 = 6 and snake_case_name"
+
+
+def test_heading_bullets_numbers_and_rule():
+    text = "## Coming Up\n- First *thing*\n1. Step one\n---\nDone\n"
+    doc = _load(build_docx(text))
+    texts = [p.text for p in doc.paragraphs]
+    assert texts == ["Coming Up", "First thing", "Step one", "Done"]
+    heading = doc.paragraphs[0]
+    assert heading.runs[0].bold and heading.runs[0].font.size == Pt(14)
+    assert doc.paragraphs[1].style.name == "List Bullet"
+    assert doc.paragraphs[2].style.name == "List Number"
+
+
+def test_no_raw_markdown_left():
+    text = "## Hi\n**Bold** [link](https://a.org) *it*\n- item\n"
+    doc = _load(build_docx(text))
+    body = "\n".join(p.text for p in doc.paragraphs)
+    for marker in ("**", "](", "## ", "- "):
+        assert marker not in body
+
+
+def test_table_cell_markdown_rendered():
+    text = "UPCOMING_TABLE\nDATE_ROW: **Potluck** at https://pccmi.org/p | Sun, Oct 25\n"
+    doc = _load(build_docx(text))
+    cell = doc.tables[0].rows[1].cells[0]
+    assert cell.text == "Potluck at https://pccmi.org/p"
+    assert cell.paragraphs[0].runs[0].bold
+    assert ("https://pccmi.org/p", "https://pccmi.org/p") in _hyperlinks(doc)
