@@ -8,8 +8,8 @@ from .docx_builder import build_docx
 from .pdf_utils import extract_text
 from .sermon_notes import find_sermon_notes
 
-# Matches "Bulletin-MM-DD-YYYY.pdf" (case-insensitive)
-BULLETIN_PATTERN = re.compile(r"^Bulletin-(\d{2})-(\d{2})-(\d{4})\.pdf$", re.IGNORECASE)
+# Matches "Bulletin-MM-DD-YYYY.pdf" exactly (case-sensitive)
+BULLETIN_PATTERN = re.compile(r"^Bulletin-(\d{2})-(\d{2})-(\d{4})\.pdf$")
 
 
 def parse_sunday_from_filename(pdf_path: Path) -> date | None:

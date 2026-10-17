@@ -48,10 +48,9 @@ def test_defaults_to_today(tmp_path, monkeypatch):
     assert find_unprocessed(tmp_path) == [pdf]
 
 
-def test_lowercase_name_matched(tmp_path):
-    pdf = tmp_path / "bulletin-10-18-2026.pdf"
-    pdf.touch()
-    assert find_unprocessed(tmp_path, THURSDAY) == [pdf]
+def test_lowercase_name_ignored(tmp_path):
+    (tmp_path / "bulletin-10-18-2026.pdf").touch()
+    assert find_unprocessed(tmp_path, THURSDAY) == []
 
 
 def test_already_processed_excluded(tmp_path):

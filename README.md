@@ -87,7 +87,7 @@ systemctl --user start pcc-bulletin.service
 
 Both files live in `~/Documents/PCC Bulletins/` (configurable via `PCC_BULLETIN_FOLDER`).
 
-On each run, only the bulletin dated for the **upcoming Sunday** (today, if today is Sunday) is processed, and only if its `-email.docx` doesn't exist yet. Older or future bulletins in the folder are ignored. The filename match is case-insensitive.
+On each run, only the bulletin dated for the **upcoming Sunday** (today, if today is Sunday) is processed, and only if its `-email.docx` doesn't exist yet. Older or future bulletins in the folder are ignored. The filename must match exactly, including the capital `B`.
 
 ---
 

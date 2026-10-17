@@ -27,8 +27,8 @@ def test_parse_valid(tmp_path):
     assert parse_sunday_from_filename(tmp_path / "Bulletin-10-18-2026.pdf") == date(2026, 10, 18)
 
 
-def test_parse_case_insensitive(tmp_path):
-    assert parse_sunday_from_filename(tmp_path / "bulletin-10-18-2026.pdf") == date(2026, 10, 18)
+def test_parse_is_case_sensitive(tmp_path):
+    assert parse_sunday_from_filename(tmp_path / "bulletin-10-18-2026.pdf") is None
 
 
 def test_parse_invalid_returns_none(tmp_path):
