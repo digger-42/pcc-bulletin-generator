@@ -61,12 +61,40 @@ def test_malformed_date_row_skipped():
     assert doc.tables[0].rows[1].cells[0].text == "Event"
 
 
-def test_looking_ahead_is_bold():
+def test_looking_ahead_directly_above_table():
     text = "Looking ahead:\nSome item.\nUPCOMING_TABLE\nDATE_ROW: E | D\n"
     doc = _load(build_docx(text))
-    la_paragraphs = [p for p in doc.paragraphs if p.text == "Looking ahead:"]
-    assert len(la_paragraphs) == 1
-    assert la_paragraphs[0].runs[0].bold
+    body = doc.element.body
+    table_el = doc.tables[0]._tbl
+    prev = table_el.getprevious()
+    assert "".join(t.text for t in prev.iter(qn("w:t"))) == "Looking ahead..."
+    la = [p for p in doc.paragraphs if p.text.lower().startswith("looking ahead")]
+    assert len(la) == 1  # model's standalone line replaced, not duplicated
+    assert la[0].runs[0].bold
+    assert la[0].paragraph_format.keep_with_next
+    assert list(body).index(prev) + 1 == list(body).index(table_el)
+
+
+def test_no_looking_ahead_without_table():
+    doc = _load(build_docx("Dear friends,\nUPCOMING_TABLE\n"))
+    assert not any("Looking ahead" in p.text for p in doc.paragraphs)
+
+
+def test_looking_ahead_prose_kept():
+    text = "Looking a little further ahead: the dinner is Nov 5.\n"
+    doc = _load(build_docx(text))
+    assert doc.paragraphs[0].text == text.strip()
+
+
+def test_font_applied_everywhere():
+    doc = _load(build_docx(FULL_TEXT))
+    normal = doc.styles["Normal"]
+    assert normal.font.name == "Avenir Next LT Pro"
+    r_fonts = normal.element.rPr.rFonts
+    assert r_fonts.get(qn("w:eastAsia")) == "Avenir Next LT Pro"
+    runs = [r for p in doc.paragraphs for r in p.runs]
+    runs += [r for row in doc.tables[0].rows for c in row.cells for r in c.paragraphs[0].runs]
+    assert runs and all(r.font.name == "Avenir Next LT Pro" for r in runs)
 
 
 def test_normal_paragraph_not_bold():

@@ -7,7 +7,9 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
+FONT_NAME = "Avenir Next LT Pro"
 LINK_COLOR = "0563C1"
+LOOKING_AHEAD = "Looking ahead..."
 TABLE_INDENT_TWIPS = 720  # one default tab stop (0.5 in)
 
 # Inline Markdown, in priority order: [text](url), **bold**, *italic* / _italic_, bare URL.
@@ -34,7 +36,11 @@ def build_docx(email_text: str) -> bytes:
         section.right_margin = Inches(1)
 
     style = doc.styles["Normal"]
-    style.font.name = "Arial"
+    style.font.name = FONT_NAME
+    # Also cover East Asian / complex-script text so every run uses the font.
+    r_fonts = style.element.get_or_add_rPr().get_or_add_rFonts()
+    r_fonts.set(qn("w:eastAsia"), FONT_NAME)
+    r_fonts.set(qn("w:cs"), FONT_NAME)
     style.font.size = Pt(12)
 
     date_rows: list[tuple[str, str]] = []
@@ -52,7 +58,8 @@ def build_docx(email_text: str) -> bytes:
         stripped = line.strip()
         if stripped == "UPCOMING_TABLE":
             _insert_table(doc, date_rows)
-        elif stripped == "" or _RULE.match(stripped):
+        elif stripped == "" or _RULE.match(stripped) or _is_looking_ahead(stripped):
+            # A standalone "Looking ahead" line is re-added directly above the table.
             # Paragraph spacing comes from space_after; no blank paragraphs.
             continue
         elif m := _HEADING.match(stripped):
@@ -66,12 +73,16 @@ def build_docx(email_text: str) -> bytes:
         else:
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(8)
-            add_inline(p, stripped, bold=stripped == "Looking ahead:")
+            add_inline(p, stripped)
 
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+def _is_looking_ahead(line: str) -> bool:
+    return line.lower().rstrip(":.… ").strip("*_ ") == "looking ahead"
 
 
 def add_inline(paragraph, text: str, bold: bool = False, italic: bool = False, size: int = 12):
@@ -95,7 +106,7 @@ def add_inline(paragraph, text: str, bold: bool = False, italic: bool = False, s
 
 def _add_run(paragraph, text: str, bold: bool, italic: bool, size: int):
     run = paragraph.add_run(text)
-    run.font.name = "Arial"
+    run.font.name = FONT_NAME
     run.font.size = Pt(size)
     run.bold = bold or None
     run.italic = italic or None
@@ -128,6 +139,11 @@ def _insert_table(doc: Document, date_rows: list[tuple[str, str]]) -> None:
     if not date_rows:
         return
 
+    heading = doc.add_paragraph()
+    heading.paragraph_format.space_after = Pt(4)
+    heading.paragraph_format.keep_with_next = True
+    add_inline(heading, LOOKING_AHEAD, bold=True)
+
     table = doc.add_table(rows=1 + len(date_rows), cols=2)
     table.style = "Table Grid"
     tbl_ind = OxmlElement("w:tblInd")
@@ -143,7 +159,7 @@ def _insert_table(doc: Document, date_rows: list[tuple[str, str]]) -> None:
         run = cell.paragraphs[0].add_run(text)
         run.bold = True
         run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-        run.font.name = "Arial"
+        run.font.name = FONT_NAME
         run.font.size = Pt(12)
 
     for idx, (event, date_str) in enumerate(date_rows):
