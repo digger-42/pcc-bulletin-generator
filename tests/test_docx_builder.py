@@ -91,13 +91,17 @@ def test_alternating_row_colors():
     assert len(doc.tables[0].rows) == 4  # 1 header + 3 data
 
 
-def test_empty_lines_become_paragraphs():
-    text = "Line one.\n\nLine two.\nUPCOMING_TABLE\n"
+def test_blank_lines_dropped():
+    text = "Line one.\n\n\nLine two.\nUPCOMING_TABLE\n"
     doc = _load(build_docx(text))
-    texts = [p.text for p in doc.paragraphs]
-    assert "Line one." in texts
-    assert "" in texts
-    assert "Line two." in texts
+    assert [p.text for p in doc.paragraphs] == ["Line one.", "Line two."]
+
+
+def test_table_indented_one_tab():
+    doc = _load(build_docx(FULL_TEXT))
+    ind = doc.tables[0]._tbl.tblPr.find(qn("w:tblInd"))
+    assert ind.get(qn("w:w")) == "720"
+    assert ind.get(qn("w:type")) == "dxa"
 
 
 # ── inline Markdown / links ──────────────────────────────────────────────────

@@ -8,6 +8,7 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
 LINK_COLOR = "0563C1"
+TABLE_INDENT_TWIPS = 720  # one default tab stop (0.5 in)
 
 # Inline Markdown, in priority order: [text](url), **bold**, *italic* / _italic_, bare URL.
 _INLINE = re.compile(
@@ -51,9 +52,8 @@ def build_docx(email_text: str) -> bytes:
         stripped = line.strip()
         if stripped == "UPCOMING_TABLE":
             _insert_table(doc, date_rows)
-        elif stripped == "":
-            doc.add_paragraph("")
-        elif _RULE.match(stripped):
+        elif stripped == "" or _RULE.match(stripped):
+            # Paragraph spacing comes from space_after; no blank paragraphs.
             continue
         elif m := _HEADING.match(stripped):
             p = doc.add_paragraph()
@@ -130,6 +130,10 @@ def _insert_table(doc: Document, date_rows: list[tuple[str, str]]) -> None:
 
     table = doc.add_table(rows=1 + len(date_rows), cols=2)
     table.style = "Table Grid"
+    tbl_ind = OxmlElement("w:tblInd")
+    tbl_ind.set(qn("w:w"), str(TABLE_INDENT_TWIPS))
+    tbl_ind.set(qn("w:type"), "dxa")
+    table._tbl.tblPr.append(tbl_ind)
 
     hdr = table.rows[0]
     for i, text in enumerate(["Event", "Date & Time"]):
