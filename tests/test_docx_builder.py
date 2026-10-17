@@ -97,6 +97,14 @@ def test_font_applied_everywhere():
     assert runs and all(r.font.name == "Avenir Next LT Pro" for r in runs)
 
 
+def test_body_and_table_text_are_large():
+    doc = _load(build_docx(FULL_TEXT))
+    assert doc.styles["Normal"].font.size == Pt(13.5)
+    body_runs = [r for p in doc.paragraphs for r in p.runs]
+    cell_runs = [r for row in doc.tables[0].rows for c in row.cells for r in c.paragraphs[0].runs]
+    assert all(r.font.size == Pt(13.5) for r in body_runs + cell_runs)
+
+
 def test_normal_paragraph_not_bold():
     text = "Dear friends,\nUPCOMING_TABLE\n"
     doc = _load(build_docx(text))
@@ -192,7 +200,7 @@ def test_heading_bullets_numbers_and_rule():
     texts = [p.text for p in doc.paragraphs]
     assert texts == ["Coming Up", "First thing", "Step one", "Done"]
     heading = doc.paragraphs[0]
-    assert heading.runs[0].bold and heading.runs[0].font.size == Pt(14)
+    assert heading.runs[0].bold and heading.runs[0].font.size == Pt(16)
     assert doc.paragraphs[1].style.name == "List Bullet"
     assert doc.paragraphs[2].style.name == "List Number"
 

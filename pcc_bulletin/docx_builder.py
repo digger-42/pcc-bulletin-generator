@@ -8,6 +8,8 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
 FONT_NAME = "Avenir Next LT Pro"
+BODY_PT = 13.5  # Thunderbird "Large" (18 px)
+HEADING_PT = 16
 LINK_COLOR = "0563C1"
 LOOKING_AHEAD = "Looking ahead..."
 TABLE_INDENT_TWIPS = 720  # one default tab stop (0.5 in)
@@ -41,7 +43,7 @@ def build_docx(email_text: str) -> bytes:
     r_fonts = style.element.get_or_add_rPr().get_or_add_rFonts()
     r_fonts.set(qn("w:eastAsia"), FONT_NAME)
     r_fonts.set(qn("w:cs"), FONT_NAME)
-    style.font.size = Pt(12)
+    style.font.size = Pt(BODY_PT)
 
     date_rows: list[tuple[str, str]] = []
     body_lines: list[str] = []
@@ -65,7 +67,7 @@ def build_docx(email_text: str) -> bytes:
         elif m := _HEADING.match(stripped):
             p = doc.add_paragraph()
             p.paragraph_format.space_after = Pt(8)
-            add_inline(p, m.group(1), bold=True, size=14)
+            add_inline(p, m.group(1), bold=True, size=HEADING_PT)
         elif m := _BULLET.match(stripped):
             add_inline(doc.add_paragraph(style="List Bullet"), m.group(1))
         elif m := _NUMBERED.match(stripped):
@@ -85,7 +87,9 @@ def _is_looking_ahead(line: str) -> bool:
     return line.lower().rstrip(":.… ").strip("*_ ") == "looking ahead"
 
 
-def add_inline(paragraph, text: str, bold: bool = False, italic: bool = False, size: int = 12):
+def add_inline(
+    paragraph, text: str, bold: bool = False, italic: bool = False, size: float = BODY_PT
+):
     """Append *text* to *paragraph*, rendering inline Markdown and URLs as real formatting."""
     pos = 0
     for m in _INLINE.finditer(text):
@@ -104,7 +108,7 @@ def add_inline(paragraph, text: str, bold: bool = False, italic: bool = False, s
         _add_run(paragraph, text[pos:], bold, italic, size)
 
 
-def _add_run(paragraph, text: str, bold: bool, italic: bool, size: int):
+def _add_run(paragraph, text: str, bold: bool, italic: bool, size: float):
     run = paragraph.add_run(text)
     run.font.name = FONT_NAME
     run.font.size = Pt(size)
@@ -113,7 +117,7 @@ def _add_run(paragraph, text: str, bold: bool, italic: bool, size: int):
     return run
 
 
-def _add_hyperlink(paragraph, text: str, url: str, bold: bool, italic: bool, size: int) -> None:
+def _add_hyperlink(paragraph, text: str, url: str, bold: bool, italic: bool, size: float) -> None:
     r_id = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
     hyperlink = OxmlElement("w:hyperlink")
     hyperlink.set(qn("r:id"), r_id)
@@ -160,7 +164,7 @@ def _insert_table(doc: Document, date_rows: list[tuple[str, str]]) -> None:
         run.bold = True
         run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         run.font.name = FONT_NAME
-        run.font.size = Pt(12)
+        run.font.size = Pt(BODY_PT)
 
     for idx, (event, date_str) in enumerate(date_rows):
         row = table.rows[idx + 1]
