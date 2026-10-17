@@ -46,11 +46,12 @@ FiltaQuilla is a Thunderbird extension that lets message filters save attachment
 2. In Thunderbird → **Tools → Message Filters**, create a new filter:
    - **Filter name:** Save PCC Bulletin
    - **Match:** Subject contains `bulletin` **AND** From contains `office@pccmi.org`
-   - **Action:** Save Attachment to Disk → `~/Documents/PCC Bulletins/`
-   - Check **"Don't download other attachments"** (saves only the PDF)
+   - **Action:** Save Attachments To → `~/Documents/PCC Bulletins/`
 3. Apply the filter to the Inbox.
 
-New emails matching the filter will have their PDF saved automatically. The systemd path watcher fires within seconds.
+FiltaQuilla saves *every* attachment on a matching email; it cannot filter by file type. That's fine: the script ignores anything that isn't the upcoming Sunday's `Bulletin-MM-DD-YYYY.pdf`, so other attachments just sit in the folder. Keep the match conditions tight to limit the clutter.
+
+New emails matching the filter will have their attachments saved automatically. The systemd path watcher fires within seconds.
 
 ---
 
@@ -86,6 +87,8 @@ systemctl --user start pcc-bulletin.service
 
 Both files live in `~/Documents/PCC Bulletins/` (configurable via `PCC_BULLETIN_FOLDER`).
 
+On each run, only the bulletin dated for the **upcoming Sunday** (today, if today is Sunday) is processed, and only if its `-email.docx` doesn't exist yet. Older or future bulletins in the folder are ignored. The filename match is case-insensitive.
+
 ---
 
 ## Environment Variables
@@ -104,10 +107,10 @@ Set in `~/.config/pcc-bulletin/env`:
 ## Manual Run
 
 ```bash
-# Process any unprocessed bulletins in the watched folder:
+# Process the upcoming Sunday's bulletin, if present and not yet processed:
 pcc-bulletin
 
-# Process a specific file:
+# Process a specific file (any date, even if already processed):
 pcc-bulletin /path/to/Bulletin-10-18-2026.pdf
 ```
 
