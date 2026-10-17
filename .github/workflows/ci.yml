@@ -20,7 +20,7 @@ jobs:
 
       - name: Install quality tools
         run: |
-          pip install black ruff bandit
+          pip install -r requirements-dev.txt
 
       - name: black (format check)
         run: black --check .

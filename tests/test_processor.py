@@ -1,8 +1,6 @@
 from datetime import date
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from pcc_bulletin.config import Config
 from pcc_bulletin.processor import (

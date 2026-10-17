@@ -1,14 +1,14 @@
 """Tests for pcc_bulletin.main — the CLI entry point."""
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-import pcc_bulletin.main as main_mod
 from pcc_bulletin.main import main
 
-
 # ── helpers ──────────────────────────────────────────────────────────────────
+
 
 def _good_config():
     cfg = MagicMock()
@@ -17,6 +17,7 @@ def _good_config():
 
 
 # ── config failure ────────────────────────────────────────────────────────────
+
 
 def test_bad_config_returns_1(monkeypatch):
     monkeypatch.setattr(
@@ -28,6 +29,7 @@ def test_bad_config_returns_1(monkeypatch):
 
 # ── no bulletins ─────────────────────────────────────────────────────────────
 
+
 @patch("pcc_bulletin.main.find_unprocessed", return_value=[])
 @patch("pcc_bulletin.main.Config.from_env")
 def test_no_bulletins_returns_0(mock_cfg, mock_find, monkeypatch):
@@ -38,6 +40,7 @@ def test_no_bulletins_returns_0(mock_cfg, mock_find, monkeypatch):
 
 
 # ── explicit path argument ────────────────────────────────────────────────────
+
 
 @patch("pcc_bulletin.main.process_bulletin")
 @patch("pcc_bulletin.main.Config.from_env")
@@ -58,6 +61,7 @@ def test_explicit_path_argument(mock_cfg, mock_proc, monkeypatch, tmp_path):
 
 
 # ── successful batch ──────────────────────────────────────────────────────────
+
 
 @patch("pcc_bulletin.main.process_bulletin")
 @patch("pcc_bulletin.main.find_unprocessed")
@@ -81,6 +85,7 @@ def test_successful_batch(mock_cfg, mock_find, mock_proc, tmp_path, monkeypatch)
 
 # ── one failure still processes rest, returns 1 ───────────────────────────────
 
+
 @patch("pcc_bulletin.main.process_bulletin")
 @patch("pcc_bulletin.main.find_unprocessed")
 @patch("pcc_bulletin.main.Config.from_env")
@@ -101,6 +106,7 @@ def test_partial_failure_returns_1(mock_cfg, mock_find, mock_proc, tmp_path, mon
 
 # ── __main__ block ────────────────────────────────────────────────────────────
 
+
 def test_dunder_main(monkeypatch):
     """Executing the module as __main__ calls sys.exit(main())."""
     import runpy
@@ -108,8 +114,10 @@ def test_dunder_main(monkeypatch):
     monkeypatch.setattr("sys.argv", ["pcc-bulletin"])
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
 
-    with patch("pcc_bulletin.main.find_unprocessed", return_value=[]), \
-         pytest.raises(SystemExit) as exc:
+    with (
+        patch("pcc_bulletin.main.find_unprocessed", return_value=[]),
+        pytest.raises(SystemExit) as exc,
+    ):
         runpy.run_module("pcc_bulletin.main", run_name="__main__", alter_sys=True)
 
     assert exc.value.code == 0

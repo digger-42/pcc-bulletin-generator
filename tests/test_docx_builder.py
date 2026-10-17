@@ -1,9 +1,8 @@
 import io
 
-import pytest
 from docx import Document
 
-from pcc_bulletin.docx_builder import _insert_table, _set_cell_bg, build_docx
+from pcc_bulletin.docx_builder import build_docx
 
 FULL_TEXT = """\
 Dear Plainfield Christian Church Friends,

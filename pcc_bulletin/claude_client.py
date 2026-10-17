@@ -21,7 +21,9 @@ def generate_email(
     client = anthropic.Anthropic(api_key=api_key)
 
     if sermon_notes:
-        user_content = f"Here is the bulletin text:\n\n{bulletin_text}{_NOTES_PREAMBLE}{sermon_notes}"
+        user_content = (
+            f"Here is the bulletin text:\n\n{bulletin_text}{_NOTES_PREAMBLE}{sermon_notes}"
+        )
     else:
         user_content = f"Here is the bulletin text:\n\n{bulletin_text}"
 
