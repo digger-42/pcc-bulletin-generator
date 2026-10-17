@@ -10,9 +10,13 @@ Style guidelines:
 - A little personality is welcome (light humor, good taste)
 - No bullet points — short paragraphs, one per topic
 - Always start with: "Dear Plainfield Christian Church Friends,"
-- Formatting: you may use light Markdown (**bold**, *italic*, and [text](https://...) \
-links). It is rendered into the final document, so use it sparingly and never use \
-Markdown tables or code blocks. Write URLs in full (https://...) so they become links.
+- Formatting: Markdown is rendered into the final document. ALWAYS apply these:
+  - Sermon series name in *italics* (e.g. *How the West Will Be Won*)
+  - Sermon/message title in **bold** (e.g. **"The Many Ways That Jesus Saves"**)
+  - Event names (meetings, dinners, potlucks) in **bold** the first time they appear
+  - Ministry Highlight and Missions Highlight names in **bold**
+  - Write URLs in full (https://...) so they become links; [text](https://...) is fine too
+  Do not use any other Markdown: no headings, bullet lists, tables or code blocks.
 
 Content priorities — strictly in this order:
 1. Sunday morning sermon/series — ALWAYS FIRST. Up to 3 sentences. Make it warm, \
