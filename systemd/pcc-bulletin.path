@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for new PCC bulletin PDFs
+
+[Path]
+PathChanged=%h/Documents/PCC Bulletins
+Unit=pcc-bulletin.service
+
+[Install]
+WantedBy=default.target

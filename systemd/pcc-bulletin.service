@@ -1,0 +1,11 @@
+[Unit]
+Description=Generate PCC bulletin email from new PDF
+After=network.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/pcc-bulletin/env
+ExecStart=__VENV_PYTHON__ -m pcc_bulletin.main
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pcc-bulletin
