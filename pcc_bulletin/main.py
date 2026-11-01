@@ -4,7 +4,7 @@ from pathlib import Path
 
 from .config import Config
 from .processor import process_bulletin
-from .watcher import find_unprocessed
+from .watcher import find_latest, find_unprocessed
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,14 +20,17 @@ def main() -> int:
         log.error(str(exc))
         return 1
 
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 1 and sys.argv[1] == "--latest":
+        # Force mode: newest bulletin in the folder, even if already processed
+        pdfs = find_latest(config.bulletin_folder)
+    elif len(sys.argv) > 1:
         # Explicit path — useful for manual re-runs or testing
         pdfs = [Path(sys.argv[1])]
     else:
         pdfs = find_unprocessed(config.bulletin_folder)
 
     if not pdfs:
-        log.info("No unprocessed bulletins found.")
+        log.info("No bulletins to process.")
         return 0
 
     exit_code = 0

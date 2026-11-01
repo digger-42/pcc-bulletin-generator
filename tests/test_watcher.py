@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from pcc_bulletin.watcher import find_unprocessed, upcoming_sunday
+from pcc_bulletin.watcher import find_latest, find_unprocessed, upcoming_sunday
 
 # Thursday before Sunday 2026-10-18
 THURSDAY = date(2026, 10, 15)
@@ -80,3 +80,31 @@ def test_mixed_contents(tmp_path):
     upcoming.touch()
     (tmp_path / "random.pdf").touch()
     assert find_unprocessed(tmp_path, THURSDAY) == [upcoming]
+
+
+# ── find_latest ──────────────────────────────────────────────────────────────
+
+
+def test_find_latest_missing_folder(tmp_path):
+    assert find_latest(tmp_path / "nope") == []
+
+
+def test_find_latest_no_bulletins(tmp_path):
+    (tmp_path / "flyer.pdf").touch()
+    (tmp_path / "bulletin-10-18-2026.pdf").touch()  # wrong case
+    assert find_latest(tmp_path) == []
+
+
+def test_find_latest_picks_newest_download_even_if_processed(tmp_path):
+    import os
+
+    older = tmp_path / "Bulletin-10-25-2026.pdf"
+    newer = tmp_path / "Bulletin-10-18-2026.pdf"  # earlier date, downloaded later
+    other = tmp_path / "flyer.pdf"
+    for i, p in enumerate([older, newer, other]):
+        p.touch()
+        os.utime(p, (1000 + i, 1000 + i))
+    (tmp_path / "Bulletin-10-18-2026-email.docx").touch()  # already processed
+    (tmp_path / "subdir.pdf").mkdir()
+
+    assert find_latest(tmp_path) == [newer]
