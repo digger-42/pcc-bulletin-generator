@@ -27,6 +27,11 @@ def test_parse_valid(tmp_path):
     assert parse_sunday_from_filename(tmp_path / "Bulletin-10-18-2026.pdf") == date(2026, 10, 18)
 
 
+def test_parse_allows_spaces_before_extension(tmp_path):
+    p = tmp_path / "Bulletin-10-18-2026   .pdf"
+    assert parse_sunday_from_filename(p) == date(2026, 10, 18)
+
+
 def test_parse_is_case_sensitive(tmp_path):
     assert parse_sunday_from_filename(tmp_path / "bulletin-10-18-2026.pdf") is None
 
@@ -47,6 +52,11 @@ def test_output_path(tmp_path):
     assert output_path_for(p) == tmp_path / "Bulletin-10-18-2026-email.docx"
 
 
+def test_output_path_drops_spaces_before_extension(tmp_path):
+    p = tmp_path / "Bulletin-10-18-2026  .pdf"
+    assert output_path_for(p) == tmp_path / "Bulletin-10-18-2026-email.docx"
+
+
 # ── is_processed ────────────────────────────────────────────────────────────
 
 
@@ -61,6 +71,25 @@ def test_is_processed_true(tmp_path):
     p.touch()
     (tmp_path / "Bulletin-10-18-2026-email.docx").touch()
     assert is_processed(p)
+
+
+def test_is_processed_docx_with_spaces(tmp_path):
+    p = tmp_path / "Bulletin-10-18-2026 .pdf"
+    p.touch()
+    (tmp_path / "Bulletin-10-18-2026-email   .docx").touch()
+    assert is_processed(p)
+
+
+def test_is_processed_ignores_other_docx(tmp_path):
+    p = tmp_path / "Bulletin-10-18-2026.pdf"
+    p.touch()
+    (tmp_path / "Bulletin-10-25-2026-email.docx").touch()
+    (tmp_path / "Bulletin-10-18-2026-email-old.docx").touch()
+    assert not is_processed(p)
+
+
+def test_is_processed_missing_folder(tmp_path):
+    assert not is_processed(tmp_path / "nope" / "Bulletin-10-18-2026.pdf")
 
 
 # ── process_bulletin ─────────────────────────────────────────────────────────

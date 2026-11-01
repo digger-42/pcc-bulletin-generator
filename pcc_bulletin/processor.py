@@ -8,8 +8,9 @@ from .docx_builder import build_docx
 from .pdf_utils import extract_text
 from .sermon_notes import find_sermon_notes
 
-# Matches "Bulletin-MM-DD-YYYY.pdf" exactly (case-sensitive)
-BULLETIN_PATTERN = re.compile(r"^Bulletin-(\d{2})-(\d{2})-(\d{4})\.pdf$")
+# Matches "Bulletin-MM-DD-YYYY.pdf" (case-sensitive). Thunderbird sometimes saves
+# attachments with spaces before the extension, so any number of them is allowed.
+BULLETIN_PATTERN = re.compile(r"^Bulletin-(\d{2})-(\d{2})-(\d{4}) *\.pdf$")
 
 
 def parse_sunday_from_filename(pdf_path: Path) -> date | None:
@@ -22,13 +23,22 @@ def parse_sunday_from_filename(pdf_path: Path) -> date | None:
 
 
 def output_path_for(pdf_path: Path) -> Path:
-    """Return the expected .docx output path for a given bulletin PDF."""
-    return pdf_path.parent / f"{pdf_path.stem}-email.docx"
+    """
+    Return the .docx output path for a given bulletin PDF. Spaces before the
+    PDF's extension are dropped, so the output name is always clean.
+    """
+    return pdf_path.parent / f"{pdf_path.stem.rstrip(' ')}-email.docx"
 
 
 def is_processed(pdf_path: Path) -> bool:
-    """True if the output .docx already exists for this bulletin."""
-    return output_path_for(pdf_path).exists()
+    """
+    True if an output .docx already exists for this bulletin, allowing any
+    number of spaces before its extension.
+    """
+    base = re.escape(output_path_for(pdf_path).stem)
+    pattern = re.compile(rf"^{base} *\.docx$")
+    folder = pdf_path.parent
+    return folder.is_dir() and any(pattern.match(p.name) for p in folder.iterdir())
 
 
 def process_bulletin(pdf_path: Path, config: Config) -> Path:
