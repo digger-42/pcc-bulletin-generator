@@ -60,6 +60,29 @@ def test_explicit_path_argument(mock_cfg, mock_proc, monkeypatch, tmp_path):
     # likely return [] — but it must not be called at all)
 
 
+# ── --latest (force) mode ─────────────────────────────────────────────────────
+
+
+@patch("pcc_bulletin.main.process_bulletin")
+@patch("pcc_bulletin.main.find_unprocessed")
+@patch("pcc_bulletin.main.find_latest")
+@patch("pcc_bulletin.main.Config.from_env")
+def test_latest_flag_reprocesses_newest(
+    mock_cfg, mock_latest, mock_find, mock_proc, tmp_path, monkeypatch
+):
+    monkeypatch.setattr("sys.argv", ["pcc-bulletin", "--latest"])
+    cfg = _good_config()
+    mock_cfg.return_value = cfg
+    pdf = tmp_path / "Bulletin-10-18-2026.pdf"
+    mock_latest.return_value = [pdf]
+    mock_proc.return_value = tmp_path / "Bulletin-10-18-2026-email.docx"
+
+    assert main() == 0
+    mock_latest.assert_called_once_with(cfg.bulletin_folder)
+    mock_find.assert_not_called()
+    mock_proc.assert_called_once_with(pdf, cfg)
+
+
 # ── successful batch ──────────────────────────────────────────────────────────
 
 

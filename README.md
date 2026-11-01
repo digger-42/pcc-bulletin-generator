@@ -112,7 +112,14 @@ pcc-bulletin
 
 # Process a specific file (any date, even if already processed):
 pcc-bulletin /path/to/Bulletin-10-18-2026.pdf
+
+# Reprocess the most recently downloaded bulletin, even if already processed:
+pcc-bulletin --latest
 ```
+
+If the path watcher misses a new bulletin, run `./force-run.sh` from the repo root. It runs
+`pcc-bulletin --latest` with the same virtualenv and env file the service uses, so it picks the
+newest `Bulletin-MM-DD-YYYY.pdf` in the folder and regenerates its `-email.docx` immediately.
 
 ---
 
