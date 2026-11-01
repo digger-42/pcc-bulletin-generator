@@ -108,3 +108,12 @@ def test_find_latest_picks_newest_download_even_if_processed(tmp_path):
     (tmp_path / "subdir.pdf").mkdir()
 
     assert find_latest(tmp_path) == [newer]
+
+
+def test_find_latest_and_unprocessed_allow_spaces(tmp_path):
+    pdf = tmp_path / "Bulletin-10-18-2026    .pdf"
+    pdf.touch()
+    assert find_latest(tmp_path) == [pdf]
+    assert find_unprocessed(tmp_path, THURSDAY) == [pdf]
+    (tmp_path / "Bulletin-10-18-2026-email  .docx").touch()
+    assert find_unprocessed(tmp_path, THURSDAY) == []
