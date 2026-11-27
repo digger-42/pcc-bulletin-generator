@@ -2,9 +2,11 @@ import re
 from datetime import date
 from pathlib import Path
 
-from .claude_client import generate_email
+from .alerts import raise_alarm
+from .claude_client import ClaudeAPIError, generate_email
 from .config import Config
 from .docx_builder import build_docx
+from .failure_state import record_failure
 from .pdf_utils import extract_text
 from .sermon_notes import find_sermon_notes
 
@@ -61,9 +63,32 @@ def process_bulletin(pdf_path: Path, config: Config) -> Path:
         if notes_path is not None:
             sermon_notes_text = extract_text(notes_path)
 
-    email_text = generate_email(bulletin_text, config.api_key, sermon_notes_text, config.model)
+    try:
+        email_text = generate_email(bulletin_text, config.api_key, sermon_notes_text, config.model)
+    except ClaudeAPIError as exc:
+        # Record first: the error-log append below re-triggers the path watcher.
+        record_failure(pdf_path)
+        report_claude_failure(pdf_path, config, exc, has_sermon_notes=bool(sermon_notes_text))
+        raise
     docx_bytes = build_docx(email_text)
 
     out_path = output_path_for(pdf_path)
     out_path.write_bytes(docx_bytes)
     return out_path
+
+
+def report_claude_failure(
+    pdf_path: Path, config: Config, exc: Exception, has_sermon_notes: bool
+) -> None:
+    """Log, record and email a Claude API failure. Never raises."""
+    details = (
+        f"Step: generating the email text with the Claude API\n"
+        f"Bulletin: {pdf_path}\n"
+        f"Model: {config.model}\n"
+        f"Sermon notes included: {'yes' if has_sermon_notes else 'no'}\n"
+        f"\nError:\n{exc}\n"
+        f"\nNo -email.docx was written for this bulletin. Once the problem is fixed, rerun with:\n"
+        f"  pcc-bulletin '{pdf_path}'\n"
+        f"or ./force-run.sh from the repo if this is the newest bulletin."
+    )
+    raise_alarm(f"CLAUDE API FAILURE for {pdf_path.name}", details)

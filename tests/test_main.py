@@ -27,6 +27,61 @@ def test_bad_config_returns_1(monkeypatch):
     assert main() == 1
 
 
+@patch("pcc_bulletin.main.raise_alarm")
+@patch("pcc_bulletin.main.Config.from_env", side_effect=RuntimeError("no key"))
+def test_bad_config_alarms_once(mock_cfg, mock_alarm, caplog):
+    assert main() == 1
+    assert main() == 1  # re-triggered by the watcher: no second alert
+    mock_alarm.assert_called_once()
+    assert "no key" in mock_alarm.call_args.args[1]
+    assert "already alerted" in caplog.text
+
+
+@patch("pcc_bulletin.main.find_unprocessed", return_value=[])
+@patch("pcc_bulletin.main.raise_alarm")
+@patch("pcc_bulletin.main.Config.from_env")
+def test_config_alarm_rearms_after_fix(mock_cfg, mock_alarm, mock_find, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["pcc-bulletin"])
+    mock_cfg.side_effect = RuntimeError("no key")
+    main()
+    mock_cfg.side_effect = None
+    mock_cfg.return_value = _good_config()
+    main()  # fixed
+    mock_cfg.side_effect = RuntimeError("no key")
+    main()  # broken again: alert again
+    assert mock_alarm.call_count == 2
+
+
+# ── no retry loop after a Claude failure ──────────────────────────────────────
+
+
+@patch("pcc_bulletin.main.process_bulletin")
+@patch("pcc_bulletin.main.find_unprocessed")
+@patch("pcc_bulletin.main.Config.from_env")
+def test_watcher_run_skips_previously_failed(
+    mock_cfg, mock_find, mock_proc, tmp_path, monkeypatch, caplog
+):
+    from pcc_bulletin.failure_state import failed_before, record_failure
+
+    monkeypatch.setattr("sys.argv", ["pcc-bulletin"])
+    mock_cfg.return_value = _good_config()
+    pdf = tmp_path / "Bulletin-10-18-2026.pdf"
+    pdf.touch()
+    mock_find.return_value = [pdf]
+    record_failure(pdf)
+
+    assert main() == 0
+    mock_proc.assert_not_called()
+    assert "Skipping Bulletin-10-18-2026.pdf" in caplog.text
+
+    # a manual run retries, and success clears the failure
+    monkeypatch.setattr("sys.argv", ["pcc-bulletin", str(pdf)])
+    mock_proc.return_value = tmp_path / "Bulletin-10-18-2026-email.docx"
+    assert main() == 0
+    mock_proc.assert_called_once()
+    assert not failed_before(pdf)
+
+
 # ── no bulletins ─────────────────────────────────────────────────────────────
 
 

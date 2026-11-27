@@ -2,7 +2,9 @@ import logging
 import sys
 from pathlib import Path
 
+from .alerts import raise_alarm, warn_if_unconfigured
 from .config import Config
+from .failure_state import clear_config_error, clear_failure, failed_before, is_new_config_error
 from .processor import process_bulletin
 from .watcher import find_latest, find_unprocessed
 
@@ -17,8 +19,18 @@ def main() -> int:
     try:
         config = Config.from_env()
     except RuntimeError as exc:
-        log.error(str(exc))
+        if is_new_config_error(str(exc)):
+            raise_alarm(
+                "CLAUDE API CAN'T BE CALLED: configuration error",
+                f"pcc-bulletin could not start, so no bulletin email will be generated.\n\n{exc}",
+            )
+        else:
+            # Same error as last run; already alerted. Don't loop on the watcher.
+            log.critical("Still failing (already alerted): %s", exc)
         return 1
+
+    clear_config_error()
+    warn_if_unconfigured()
 
     if len(sys.argv) > 1 and sys.argv[1] == "--latest":
         # Force mode: newest bulletin in the folder, even if already processed
@@ -27,7 +39,18 @@ def main() -> int:
         # Explicit path — useful for manual re-runs or testing
         pdfs = [Path(sys.argv[1])]
     else:
-        pdfs = find_unprocessed(config.bulletin_folder)
+        pdfs = []
+        for pdf_path in find_unprocessed(config.bulletin_folder):
+            if failed_before(pdf_path):
+                # Don't loop: the error log append re-triggers the path watcher.
+                log.warning(
+                    "Skipping %s: its last Claude API call failed and the PDF hasn't changed. "
+                    "Rerun by hand with ./force-run.sh or pcc-bulletin '%s'.",
+                    pdf_path.name,
+                    pdf_path,
+                )
+            else:
+                pdfs.append(pdf_path)
 
     if not pdfs:
         log.info("No bulletins to process.")
@@ -39,6 +62,7 @@ def main() -> int:
         try:
             out_path = process_bulletin(pdf_path, config)
             log.info("Generated %s", out_path.name)
+            clear_failure(pdf_path)
         except Exception as exc:  # noqa: BLE001
             log.error("Failed to process %s: %s", pdf_path.name, exc)
             exit_code = 1

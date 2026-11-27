@@ -101,6 +101,35 @@ Set in `~/.config/pcc-bulletin/env`:
 | `PCC_BULLETIN_FOLDER` | `~/Documents/PCC Bulletins` | Where bulletins are saved |
 | `PCC_SERMON_NOTES_ROOT` | `/MaresLeg/Church/SermonNotes` | Root of sermon notes tree |
 | `PCC_MODEL` | `claude-sonnet-4-6` | Claude model to use |
+| `PCC_SMTP_USER` | *(none)* | SMTP login for failure alerts. For Gmail, your Gmail address |
+| `PCC_SMTP_PASSWORD` | *(none)* | SMTP password. For Gmail, an [app password](https://myaccount.google.com/apppasswords), not your normal password |
+| `PCC_SMTP_HOST` | `smtp.gmail.com` | SMTP server |
+| `PCC_SMTP_PORT` | `587` | `587` uses STARTTLS, `465` uses implicit TLS |
+| `PCC_ALERT_TO` | `PCC_SMTP_USER` | Who gets alert emails (comma-separated) |
+| `PCC_ALERT_FROM` | `PCC_SMTP_USER` | Sender address on alert emails |
+| `PCC_ERROR_LOG` | `<bulletin folder>/HEY-CLAUDE-API-ERRORS.md` | Markdown file that every failure is appended to |
+| `PCC_STATE_DIR` | `~/.local/state/pcc-bulletin` | Remembers failed bulletins so the watcher doesn't retry in a loop |
+
+---
+
+## When the Claude API Fails
+
+Any failure of the Claude API call is reported three ways, none of which use Claude:
+
+1. A `CRITICAL` entry wrapped in `!!!!` banners in the journal (`journalctl --user -u pcc-bulletin.service`).
+2. An entry appended to `HEY-CLAUDE-API-ERRORS.md` in the bulletin folder.
+3. An alert email sent over SMTP, if the `PCC_SMTP_*` settings are filled in.
+
+"Failure" covers SDK errors (bad key, rate limits, outages and timeouts after 3 retries,
+connection errors) and unusable responses: empty text, a refusal, or output cut off at the
+token limit. Each report says which step failed, which bulletin, the model, the HTTP status and
+request id when there is one, and the command to rerun. A missing `ANTHROPIC_API_KEY` is reported
+the same way, once, until it's fixed. If the email or the log append itself fails, that is also
+logged at `CRITICAL` with the full original alert, so nothing fails silently.
+
+Because the path watcher fires on any change in the folder (including the error log append), an
+automatic run won't retry a bulletin whose last attempt failed until the PDF is downloaded again.
+After fixing the problem, rerun by hand with `./force-run.sh` or `pcc-bulletin <path>`.
 
 ---
 

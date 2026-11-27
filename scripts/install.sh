@@ -29,6 +29,12 @@ ANTHROPIC_API_KEY=your-api-key-here
 # PCC_BULLETIN_FOLDER=/home/dan/Documents/PCC Bulletins
 # PCC_SERMON_NOTES_ROOT=/MaresLeg/Church/SermonNotes
 # PCC_MODEL=claude-sonnet-4-6
+
+# Email alerts when the Claude API fails (Gmail needs an app password):
+# PCC_SMTP_USER=you@gmail.com
+# PCC_SMTP_PASSWORD=your-app-password
+# PCC_ALERT_TO=you@gmail.com
+# PCC_ERROR_LOG=/home/dan/Documents/PCC Bulletins/HEY-CLAUDE-API-ERRORS.md
 EOF
     echo "    Created skeleton env file — add your ANTHROPIC_API_KEY."
 else
