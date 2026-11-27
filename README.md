@@ -131,6 +131,10 @@ Because the path watcher fires on any change in the folder (including the error 
 automatic run won't retry a bulletin whose last attempt failed until the PDF is downloaded again.
 After fixing the problem, rerun by hand with `./force-run.sh` or `pcc-bulletin <path>`.
 
+To check that alerts work, run `./test-alert.sh` from the repo root. It runs the real pipeline on a
+throwaway PDF with a deliberately invalid API key, so you should get the banner, a new entry in
+`HEY-CLAUDE-API-ERRORS.md`, and an alert email. Your real bulletins aren't touched.
+
 ---
 
 ## Manual Run
