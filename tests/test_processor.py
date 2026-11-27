@@ -143,3 +143,43 @@ def test_process_unrecognised_filename_skips_notes(
 
     mock_notes.assert_not_called()
     mock_gen.assert_called_once_with("bulletin text", "sk-test", "", "claude-test")
+
+
+# ── Claude API failure ───────────────────────────────────────────────────────
+
+
+@patch("pcc_bulletin.alerts.send_alert")
+@patch("pcc_bulletin.processor.generate_email")
+@patch("pcc_bulletin.processor.find_sermon_notes", return_value=None)
+@patch("pcc_bulletin.processor.extract_text", return_value="bulletin text")
+def test_claude_failure_alerts_logs_and_reraises(
+    mock_extract, mock_notes, mock_gen, mock_send, tmp_path, caplog
+):
+    import pytest
+
+    from pcc_bulletin.alerts import error_log_path
+    from pcc_bulletin.claude_client import ClaudeAPIError
+    from pcc_bulletin.failure_state import failed_before
+
+    pdf = tmp_path / "Bulletin-10-18-2026.pdf"
+    pdf.touch()
+    mock_gen.side_effect = ClaudeAPIError("HTTP status: 529")
+
+    with pytest.raises(ClaudeAPIError):
+        process_bulletin(pdf, _cfg(tmp_path))
+
+    # nothing written, failure remembered
+    assert not (tmp_path / "Bulletin-10-18-2026-email.docx").exists()
+    assert failed_before(pdf)
+    # loud log
+    assert "CLAUDE API FAILURE for Bulletin-10-18-2026.pdf" in caplog.text
+    # error log file
+    log_text = error_log_path().read_text()
+    assert "Bulletin-10-18-2026.pdf" in log_text and "HTTP status: 529" in log_text
+    # email with context
+    subject, body = mock_send.call_args.args
+    assert "Bulletin-10-18-2026.pdf" in subject
+    assert "Step: generating the email text" in body
+    assert "Model: claude-test" in body
+    assert "Sermon notes included: no" in body
+    assert "HTTP status: 529" in body
